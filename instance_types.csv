@@ -1,0 +1,4 @@
+name,ami,instance_type
+ecs-1,ami-01a3ab628b8168507,t2.micro
+ecs-2,ami-01a3ab628b8168507,t2.micro
+ecs-3,ami-01a3ab628b8168507,t2.micro
