@@ -5,11 +5,19 @@ In order to use te project run the following:
   ```export TF_VAR_ak="aws_project_access_key"```
   ```export TF_VAR_sk="aws_project_secret_key"``` #for the AK/SK, it is not recommended to generate them on the root account
 
-Alternative when upgrading aws provider to latest:
+Alternative object-style variable:
+
+  ```export TF_VAR_aws_cred='{"ak":"aws_project_access_key","sk":"aws_project_secret_key"}'```
+
+Alternative using standard AWS environment variables:
   ```export AWS_ACCESS_KEY_ID="aws_project_access_key"```
   ```export AWS_SECRET_ACCESS_KEY="aws_project_secret_key"```
 
-```terraform init``` (optional ```-input=false```) #here you can add a custom state storage (S3, gitlab) if you've configured it. Example: ```-backend-config=./someenv/gitlab.tfbackend```
+Optional region override:
+
+  ```export TF_VAR_region="eu-west-3"```
+
+```terraform init -upgrade``` (optional ```-input=false```) #here you can add a custom state storage (S3, gitlab) if you've configured it. Example: ```-backend-config=./someenv/gitlab.tfbackend```
 
 For the next commands, you can customize also the parallelism of the creation tasks ```-parallelism=1``` or even specify a .tfvars file ```-var-file=``` (not recommanded to store secrets in plain text.
 
@@ -19,11 +27,15 @@ For the next commands, you can customize also the parallelism of the creation ta
 
 Details:
 - ak/sk variables are marked as sensitive
-- the EC2 creation is not customized to deploy in a specific subnet but it uses the 'default' Subnet of the 'default' VPC
-- the region is hardcoded to "eu-west-3" for convenience
+- Terraform creates a dedicated VPC named `main-vpc`
+- EC2 instances are placed in a private subnet inside that VPC
+- because the subnet is private, the instances do not get public IP addresses by default
+- the region defaults to "eu-west-3" but can be overridden with ```TF_VAR_region```
+- the VPC and private subnet CIDRs can be overridden with ```TF_VAR_vpc_cidr``` and ```TF_VAR_private_subnet_cidr```
 - the tf state is local as its a demo and not production grade
 - for the CSV file, I'm using 'Local Values' to assign a name to a csv decode function that produces a list of maps from a local csv file
 - ec2 instances creation is performed with the "ec2_instances" public module
+- the EC2 module is pinned to the latest 5.x series to avoid the older `5.0.0` AMI/SSM lookup issue while staying compatible with the AWS provider 5.x series
 - the line of ```code count = length(local.instances)``` is used to determine the number of EC2 instances that will be created based on the number of instances specified in the local.instances variable.
 - for name, ami and instance_type: the count.index expression is used to access the current index of the count loop, which starts at 0 and increments by 1 for each instance created. When ```local.instances``` list is defined with 6 objects which are ```name, ami, instance_type``` and their respective desired values, the expressions ```local.instances[count.index].name```, ```local.instances[count.index].ami```, ```local.instances[count.index].instance_type``` will evaluate the local variables from the csv and will produce the desired outcome on creation.
 - the user_data contains a set of bash commands that generate a random password for each ec2 creation and encode it then store it to the local file in the ec2. Ideally  we should use AWS KMS with sops or AWS Secrets Manager. The 'goto' guide I would default to using is https://blog.gruntwork.io/a-comprehensive-guide-to-managing-secrets-in-your-terraform-code-1d586955ace1
